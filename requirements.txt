@@ -1,0 +1,12 @@
+# --- LLM & Embeddings ---
+litellm>=1.50.0
+
+# --- Vector Database (modalità locale, no Docker) ---
+qdrant-client>=1.11.0
+
+# --- Document Parsing ---
+pypdf>=4.0.0
+
+# --- Utilities ---
+python-dotenv>=1.0.0
+tqdm>=4.66.0
