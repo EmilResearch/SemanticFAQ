@@ -12,6 +12,8 @@ Unlike traditional RAG systems, **SemanticFAQ does not use an LLM during inferen
 
 LLMs are only used during the **ingestion phase** to transform unstructured documents into high-quality Question & Answer pairs.
 
+[See it in action](https://youtu.be/AQnVMuAVPBA)
+
 ---
 
 # Features
@@ -506,6 +508,8 @@ This architecture is ideal for:
 * Hotel assistants
 * Appliance manuals
 * Policy documents
+
+[See it in action](https://youtu.be/AQnVMuAVPBA)
 
 ---
 
