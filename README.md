@@ -1,56 +1,63 @@
-# SemanticFAQ
+# RAGless
 
-SemanticFAQ is a lightweight semantic Question-to-Question (Q-Q) retrieval system designed for FAQ search.
+RAGless is a semantic FAQ retrieval system that answers questions **without using an LLM at runtime**.
 
-Unlike traditional RAG systems, **SemanticFAQ does not use an LLM during inference**. Responses are retrieved directly from a curated knowledge base using semantic similarity, making the system:
+Most FAQ systems today are built on RAG: retrieve some context, send it to a language model, generate an answer. RAGless takes a different approach. During ingestion, an LLM converts your documents into curated Question & Answer pairs. At query time, the user's question is matched semantically against those pre-generated questions — and the corresponding answer is returned directly, with no generation step.
 
-* Fast
-* Deterministic
-* Hallucination-free
-* Low-cost (no runtime LLM calls)
-* Easy to deploy locally
-
-LLMs are only used during the **ingestion phase** to transform unstructured documents into high-quality Question & Answer pairs.
+The result is a system that is fast, deterministic, and hallucination-free by design.
 
 [See it in action](https://youtu.be/AQnVMuAVPBA)
 
 ---
 
-# Features
+## RAGless vs RAG
 
-* Semantic FAQ retrieval using embeddings
-* No LLM required during user queries
-* Automatic FAQ generation from PDF, TXT and Markdown documents
-* Multiple semantic question variants for every answer
-* Local Qdrant vector database
-* JSON document store
-* Configurable similarity threshold
-* Optional LLM-as-a-Judge validation
-* Failed JSON recovery
-* Logging of unanswered user queries
-* Batch embedding generation for fast ingestion
+| | RAG | RAGless |
+|---|---|---|
+| LLM at query time | ✅ Yes | ❌ No |
+| Hallucination risk | Present | None |
+| Runtime cost | Per query | Zero |
+| Latency | Higher | Very low |
+| Answer predictability | Variable | Deterministic |
+| Best for | Open-ended Q&A | FAQ / closed knowledge bases |
+
+RAGless is not a replacement for RAG in general. It is a better fit when your answers are known in advance and consistency matters more than flexibility — FAQ systems, internal documentation, product manuals, customer support.
 
 ---
 
-# Project Architecture
+## Features
+
+- Semantic FAQ retrieval using embeddings
+- No LLM required during user queries
+- Automatic FAQ generation from PDF, TXT and Markdown documents
+- Multiple semantic question variants per answer (Q-Q matching)
+- Score aggregation by answer ID for more robust retrieval
+- Local Qdrant vector database (no server, no Docker)
+- Configurable similarity threshold with OOD detection
+- Optional LLM-as-a-Judge validation during ingestion
+- Automatic logging of unanswered queries for continuous improvement
+
+---
+
+## Architecture
 
 ```
 Raw Documents
       │
       ▼
-prepare_data.py
+prepare_data.py          ← LLM used here (ingestion only)
       │
       ▼
 Generated FAQ Blocks (data.json)
       │
       ▼
-ingest_to_qdrant.py
+ingest_to_qdrant.py      ← Embeddings generated here
       │
       ▼
 Qdrant Vector Database
       │
       ▼
-chatbot.py
+chatbot.py               ← No LLM, pure retrieval
       │
       ▼
 Semantic Retrieval
@@ -58,17 +65,17 @@ Semantic Retrieval
 
 ---
 
-# Project Structure
+## Project Structure
 
 ```
-SemanticFAQ/
+RAGless/
 │
-├── source/
+├── source/              ← Your documents go here
 │   ├── manual.pdf
 │   ├── faq.txt
 │   └── notes.md
 │
-├── failed_chunks/
+├── failed_chunks/       ← Chunks that couldn't be parsed (auto-saved)
 │
 ├── config.py
 ├── prepare_data.py
@@ -77,194 +84,98 @@ SemanticFAQ/
 ├── data.json
 ├── missed_queries.log
 ├── requirements.txt
-├── .env
-└── README.md
+└── .env
 ```
 
 ---
 
-# How It Works
+## How It Works
 
-SemanticFAQ consists of two completely independent phases:
+RAGless consists of two completely separate phases.
 
-1. Ingestion
-2. Retrieval
-
-The expensive AI processing happens only once during ingestion.
-
-Runtime retrieval is extremely lightweight.
-
----
-
-# Ingestion Flow
-
-The ingestion pipeline converts raw documents into a searchable semantic knowledge base.
+### Ingestion (runs once)
 
 ```
-Documents
-(PDF / TXT / MD)
-
+Documents (PDF / TXT / MD)
         │
-
         ▼
-
 Extract Text
-
         │
-
         ▼
-
 Token Counting
-
         │
-
         ▼
-
-Chunking
-(if necessary)
-
+Chunking (if necessary)
         │
-
         ▼
-
-Gemini
-Q&A Generation
-
+Gemini Q&A Generation
         │
-
         ▼
-
-Generate
-Question Variants
-
+Generate Question Variants
         │
-
         ▼
-
-(Optional)
-LLM-as-a-Judge
-
+(Optional) LLM-as-a-Judge
         │
-
         ▼
-
-Save FAQ Blocks
-(data.json)
-
+Save FAQ Blocks (data.json)
         │
-
         ▼
-
 Generate Embeddings
-
         │
-
         ▼
-
-Store Embeddings
-inside Qdrant
+Store in Qdrant
 ```
 
-Each generated FAQ block contains:
+Each FAQ block contains: a unique ID, an answer, multiple semantic question variants, a category, the source file, and the source quote.
 
-* Unique ID
-* Answer
-* Multiple semantic question variants
-* Category
-* Source file
-* Source quote
+Every question variant gets its own embedding. This is the key to Q-Q matching.
 
-Every question variant receives its own embedding.
-
----
-
-# Retrieval Flow
-
-No LLM is involved during retrieval.
+### Retrieval (no LLM involved)
 
 ```
 User Question
-
       │
-
       ▼
-
 Generate Embedding
-
       │
-
       ▼
-
-Search Top-K
-Similar Questions
-
+Search Top-K Similar Questions
       │
-
       ▼
-
-Aggregate Scores
-by Answer ID
-
+Aggregate Scores by Answer ID
       │
-
       ▼
-
-Best Matching Answer
-
-      │
-
-      ▼
-
 Threshold Check
-
       │
-
-      ├──── Below threshold
-      │         │
-      │         ▼
-      │   Log missed query
+      ├──── Below threshold → log missed query
       │
       ▼
-
-Return Answer
-+
-Source File
+Return Answer + Source File
 ```
 
-Instead of selecting only the single nearest question, SemanticFAQ aggregates similarity scores belonging to the same answer.
-
-This makes retrieval considerably more robust when several different question formulations refer to the same answer.
+Instead of picking the single nearest question, RAGless aggregates similarity scores across all question variants that belong to the same answer. This makes retrieval significantly more robust when multiple phrasings of the same question exist in the knowledge base.
 
 ---
 
-# Installation
+## Installation
 
 Clone the repository.
 
 ```bash
-git clone https://github.com/<your-username>/SemanticFAQ.git
-
-cd SemanticFAQ
+git clone https://github.com/EmilResearch/RAGless.git
+cd RAGless
 ```
 
-Create a virtual environment.
+Create and activate a virtual environment.
 
 ```bash
 python -m venv .venv
-```
 
-Activate it.
-
-Windows
-
-```bash
-.venv\Scripts\activate
-```
-
-Linux / macOS
-
-```bash
+# macOS / Linux
 source .venv/bin/activate
+
+# Windows
+.venv\Scripts\activate
 ```
 
 Install dependencies.
@@ -281,257 +192,121 @@ GEMINI_API_KEY=YOUR_API_KEY
 
 ---
 
-# Prepare Your Documents
+## Usage
 
-Copy your documents into the `source/` directory.
+### Prepare your documents
 
-Supported formats:
+Copy your documents into the `source/` directory. Supported formats: PDF, TXT, Markdown.
 
-* PDF
-* TXT
-* Markdown
-
-Example
-
-```
-source/
-
-hotel_manual.pdf
-
-faq.md
-
-notes.txt
-```
-
----
-
-# Step 1 — Generate the Knowledge Base
-
-Run:
+### Step 1 — Generate the knowledge base
 
 ```bash
 python prepare_data.py
 ```
 
-If you also want AI validation:
+With optional AI validation:
 
 ```bash
 python prepare_data.py --judge
 ```
 
-This script will:
+This reads every document, splits large files into chunks, generates FAQ blocks using Gemini, and saves everything to `data.json`.
 
-* Read every document
-* Split large files into chunks
-* Generate FAQ blocks using Gemini
-* Optionally validate every answer
-* Save everything into `data.json`
-
----
-
-# Step 2 — Build the Vector Database
-
-Run:
+### Step 2 — Build the vector database
 
 ```bash
 python ingest_to_qdrant.py
 ```
 
-This script will:
+This reads `data.json`, generates embeddings, and stores them in a local Qdrant collection.
 
-* Read `data.json`
-* Generate embeddings
-* Create a local Qdrant collection
-* Store every question embedding
-
----
-
-# Step 3 — Start the Chatbot
-
-Run:
+### Step 3 — Start the chatbot
 
 ```bash
 python chatbot.py
 ```
 
-Example
+Example:
 
 ```
-You:
-How do I connect to the hotel Wi-Fi?
+You> How do I connect to the hotel Wi-Fi?
 
-Assistant:
-The Wi-Fi password is available at the reception...
-
-Source:
-hotel_manual.pdf
+──────────────────────────────────────────────────────────────────────
+The Wi-Fi network is "HotelGuest". The password is available at the reception desk or on the welcome card in your room.
+──────────────────────────────────────────────────────────────────────
+Source: hotel_manual.pdf
 ```
 
----
-
-# Custom Threshold
-
-You can adjust the similarity threshold.
-
-Example
+### Custom threshold
 
 ```bash
 python chatbot.py --threshold 0.75
 ```
 
-Higher values
-
-* fewer false positives
-* more unanswered questions
-
-Lower values
-
-* higher recall
-* increased risk of incorrect matches
+Higher threshold → fewer false positives, more unanswered questions.
+Lower threshold → higher recall, increased risk of incorrect matches.
 
 ---
 
-# Configuration
+## Configuration
 
-All configuration is centralized inside:
+All parameters are centralized in `config.py`. No magic numbers are scattered across the codebase.
 
-```
-config.py
-```
+Key settings:
 
-Examples include:
-
-* embedding model
-* LLM model
-* chunk size
-* overlap
-* retrieval Top-K
-* similarity threshold
-* Qdrant collection name
-* vector size
-
-No magic numbers are scattered throughout the code.
+- `EMBEDDING_MODEL` — embedding model (default: `gemini/gemini-embedding-001`)
+- `VECTOR_SIZE` — output dimensionality (default: 3072)
+- `TOP_K_RETRIEVAL` — candidates pulled from Qdrant before aggregation (default: 10)
+- `DEFAULT_THRESHOLD` — minimum aggregated score to return an answer (default: 0.70)
+- `SINGLE_HIT_THRESHOLD` — fallback threshold on the best single hit (default: 0.82)
+- `CHUNK_SIZE` / `OVERLAP` — chunking parameters for large documents
 
 ---
 
-# Output Files
+## Output Files
 
-## data.json
-
-Contains the generated FAQ knowledge base.
-
-Example
+**`data.json`** — the generated FAQ knowledge base.
 
 ```json
 {
     "id": "...",
     "answer": "...",
-    "questions": [
-        "...",
-        "...",
-        "..."
-    ],
+    "questions": ["...", "...", "..."],
     "category": "...",
     "source_file": "...",
     "source_quote": "..."
 }
 ```
 
----
+**`failed_chunks/`** — if Gemini returns malformed JSON, the original chunk is saved here for manual inspection.
 
-## failed_chunks/
-
-If Gemini returns malformed JSON, the original text chunk is automatically saved here for manual inspection.
+**`missed_queries.log`** — every query that fell below the similarity threshold is logged with a timestamp and score. Use this to identify gaps in your knowledge base.
 
 ---
 
-## missed_queries.log
+## Known Limitations
 
-Whenever no answer passes the similarity threshold, the user query is logged together with:
+**Gemini lock-in.** Both the LLM (for ingestion) and the embedding model are Gemini-based. Switching provider requires updating `config.py` and re-running the full ingestion pipeline. There is no provider abstraction layer.
 
-* timestamp
-* similarity score
-* original query
+**Quality depends on ingestion.** The retrieval is only as good as the FAQ blocks generated in Step 1. There is no built-in evaluation tool to measure how well the generated questions cover the source documents. If you want to validate quality, sample `data.json` manually after ingestion.
 
-This makes it easy to identify missing knowledge and continuously improve the FAQ database.
+**Local Qdrant limitations.** RAGless uses Qdrant in embedded mode (no server required). This works well for single-process use cases up to tens of thousands of FAQ entries. For concurrent access or larger collections, migrate to a Qdrant server instance and update `QDRANT_PATH` in `config.py` to a URL.
 
 ---
 
-# Why Not RAG?
+## Future Improvements
 
-Traditional Retrieval-Augmented Generation (RAG) pipelines typically work like this:
-
-```
-Retrieve Documents
-
-        │
-
-        ▼
-
-Send Context
-to an LLM
-
-        │
-
-        ▼
-
-Generate Answer
-```
-
-SemanticFAQ follows a different philosophy:
-
-```
-Retrieve Questions
-
-        │
-
-        ▼
-
-Return Existing Answer
-```
-
-Advantages:
-
-* No hallucinations
-* No prompt engineering
-* No runtime LLM cost
-* Predictable answers
-* Very low latency
-
-This architecture is ideal for:
-
-* FAQ systems
-* Internal documentation
-* Product manuals
-* Company knowledge bases
-* Customer support
-* Hotel assistants
-* Appliance manuals
-* Policy documents
-
-[See it in action](https://youtu.be/AQnVMuAVPBA)
+- Cross-encoder reranking
+- Automatic evaluation dataset
+- Incremental ingestion (avoid full re-ingestion on document updates)
+- Metadata filtering by category
+- REST API
+- Web interface
+- Multi-language support
+- Docker deployment
 
 ---
 
-# Future Improvements
+## License
 
-Possible future enhancements include:
-
-* Cross-encoder reranking
-* Automatic evaluation dataset
-* Incremental ingestion
-* Metadata filtering
-* REST API
-* Web interface
-* Telegram integration
-* Multi-language support
-* Confidence estimation
-* SQLite document store
-* Docker deployment
-
----
-
-# License
-
-This project is released under the MIT License.
-
+MIT License.
