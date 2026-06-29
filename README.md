@@ -1,3 +1,5 @@
+![Descrizione alternativa dell'immagine](./ragless.png)
+
 # RAGless
 
 RAGless is a semantic retrieval system that answers questions about your documentation, **without using an LLM at runtime**.
