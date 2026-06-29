@@ -1,4 +1,3 @@
-![Descrizione alternativa dell'immagine](./ragless.png)
 
 # RAGless
 
@@ -26,6 +25,10 @@ The result is a system that is fast, deterministic, and hallucination-free by de
 RAGless is not a replacement for RAG in general. It is a better fit when your answers are known in advance and consistency matters more than flexibility — internal documentation, product manuals, customer support, policy documents.
 
 A single document can generate hundreds of Q&A pairs automatically, covering the full breadth of the source material. This is not about listing a handful of frequent questions — it is about making every piece of information in your documentation queryable.
+
+---
+
+![Descrizione alternativa dell'immagine](./ragless.png)
 
 ---
 
