@@ -263,6 +263,35 @@ Key settings:
 
 ---
 
+## Local Embeddings (offline mode)
+
+RAGless uses LiteLLM for embeddings, which supports local providers out of the box. If you want to run fully offline, you can replace Gemini with a local model — no code changes required.
+
+**Example with Ollama:**
+
+1. Install [Ollama](https://ollama.com) and pull an embedding model:
+
+```bash
+ollama pull nomic-embed-text
+```
+
+2. Update `config.py`:
+
+```python
+EMBEDDING_MODEL = "ollama/nomic-embed-text"
+VECTOR_SIZE = 768  # match the model's output dimension
+```
+
+3. Re-run ingestion:
+
+```bash
+python ingest_to_qdrant.py
+```
+
+Any embedding model exposed via Ollama or LM Studio works the same way. Just make sure `VECTOR_SIZE` matches the model's actual output dimension, and re-run ingestion whenever you switch models.
+
+---
+
 ## Output Files
 
 **`data.json`** — the generated FAQ knowledge base.
