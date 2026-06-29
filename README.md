@@ -1,6 +1,6 @@
 # RAGless
 
-RAGless is a semantic retrieval system that answers questions **without using an LLM at runtime**.
+RAGless is a semantic retrieval system that answers questions about your documentation, **without using an LLM at runtime**.
 
 Most Q&A systems today are built on RAG: retrieve some context, send it to a language model, generate an answer. RAGless takes a different approach. During ingestion, an LLM converts your documents into a comprehensive set of Question & Answer pairs — automatically covering the full breadth of the source material. At query time, the user's question is matched semantically against those pre-generated questions — and the corresponding answer is returned directly, with no generation step.
 
